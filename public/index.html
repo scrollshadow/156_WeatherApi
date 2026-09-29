@@ -541,13 +541,14 @@
       transform: translateX(20px);
     }
 
-    /* Dark HUD Card */
+    /* Dark HUD Card: Informasi Wilayah */
     .dark-data-card {
       background: var(--dark-card);
       color: #FFFFFF;
       border-radius: var(--radius-lg);
       padding: 22px 20px;
       position: relative;
+      transition: all 0.3s ease;
     }
 
     .dark-card-title {
@@ -573,6 +574,7 @@
       font-size: 0.68rem;
       font-weight: 700;
       color: #A0AEC0;
+      transition: all 0.2s;
     }
 
     .geo-data-list {
@@ -610,6 +612,17 @@
       text-align: right;
       max-width: 60%;
       word-break: break-word;
+      transition: all 0.3s ease;
+    }
+
+    /* Animasi highlight saat data berubah */
+    .data-updated {
+      animation: flashHighlight 0.6s ease;
+    }
+
+    @keyframes flashHighlight {
+      0% { color: #4ADE80; transform: scale(1.05); }
+      100% { color: inherit; transform: scale(1); }
     }
 
     .coordinate-pill {
@@ -848,7 +861,7 @@
             type="text" 
             id="locationInput" 
             class="search-input" 
-            placeholder="Cari lokasi: Kasihan, Malioboro..."
+            placeholder="Ketik kota/kecamatan (contoh: Kasihan, Malioboro, Bandung)..."
             value="Kasihan, Bantul" 
             required 
             autocomplete="off"
@@ -861,7 +874,7 @@
         <!-- Quick selection chips -->
         <div class="quick-chips" style="margin-top: 10px;">
           <button class="chip-item" onclick="quickSearch('Kasihan, Bantul')">📍 Kasihan</button>
-          <button class="chip-item" onclick="quickSearch('Kraton, Yogyakarta')">📍 Kraton</button>
+          <button class="chip-item" onclick="quickSearch('Malioboro, Yogyakarta')">📍 Malioboro</button>
           <button class="chip-item" onclick="quickSearch('Kebayoran Baru, Jakarta')">📍 Kebayoran Baru</button>
           <button class="chip-item" onclick="quickSearch('Coblong, Bandung')">📍 Coblong</button>
           <button class="chip-item" onclick="useCurrentLocation()">🎯 Lokasi Saya</button>
@@ -950,8 +963,8 @@
         </div>
       </div>
 
-      <!-- 5. BENTO CARD: Hasil Data Geocoding Lengkap -->
-      <div class="dark-data-card">
+      <!-- 5. BENTO CARD: Hasil Data Geocoding Lengkap (Informasi Wilayah) -->
+      <div class="dark-data-card" id="geoCardContainer">
         <div class="dark-card-title">
           <h3><i class="fa-solid fa-satellite-dish" style="color: #4ADE80;"></i> Informasi Wilayah</h3>
           <span class="badge-provider" id="apiProviderBadge">MapTiler API</span>
@@ -1085,14 +1098,14 @@
     // --- STATE INITIALIZATION ---
     let map = null;
     let currentMarker = null;
-    let currentCoords = { lat: -7.8286, lng: 110.3325 }; // Default: Kasihan, Bantul
+    let currentCoords = { lat: -7.8286, lng: 110.3325 };
     let currentData = {
       location: "Kasihan, Bantul",
       country: "Indonesia 🇮🇩",
       province: "Daerah Istimewa Yogyakarta",
       district: "Kecamatan Kasihan",
-      lat: "-7.82860",
-      lon: "110.33250",
+      lat: "-7.82860° S",
+      lon: "110.33250° E",
       temp: "28°C"
     };
 
@@ -1206,7 +1219,7 @@
       currentMarker.bindPopup(`<b>${popupText}</b>`).openPopup();
     }
 
-    // --- SEARCH & DATA FETCHING ---
+    // --- SEARCH & DATA EXTRACTION (YANG MENGUBAH TABEL) ---
     function handleSearch(e) {
       e.preventDefault();
       const query = document.getElementById("locationInput").value.trim();
@@ -1220,16 +1233,24 @@
       fetchGeoAndWeather(city);
     }
 
+    // Helper untuk memformat nama kecamatan & memisahkan dari kata "Regency/Kabupaten"
+    function cleanDistrictName(rawDistrict, rawCity) {
+      if (!rawDistrict && !rawCity) return "Kecamatan Tidak Terdeteksi";
+      let name = rawDistrict || rawCity;
+      name = name.replace(/Regency/gi, "").replace(/City/gi, "").replace(/Kota/gi, "").replace(/Kabupaten/gi, "").trim();
+      return name.startsWith("Kecamatan") ? name : `Kecamatan ${name}`;
+    }
+
     async function fetchGeoAndWeather(query) {
       const apiKey = localStorage.getItem("maptiler_key");
       const btn = document.getElementById("btnSubmitSearch");
       btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i>`;
 
       try {
-        let lat, lon, fullPlaceName = query, country = "-", province = "-", district = "-";
-        let usedMapTiler = false;
+        let lat, lon, displayLocation = query, country = "-", province = "-", district = "-";
+        let usedProvider = "OpenStreetMap API";
 
-        // 1. MapTiler Geocoding API
+        // 1. MapTiler API
         if (apiKey) {
           try {
             const url = `https://api.maptiler.com/geocoding/${encodeURIComponent(query)}.json?key=${apiKey}&language=id`;
@@ -1240,8 +1261,8 @@
               const best = data.features[0];
               lon = best.geometry.coordinates[0];
               lat = best.geometry.coordinates[1];
-              fullPlaceName = best.text || query;
-              usedMapTiler = true;
+              displayLocation = best.text || query;
+              usedProvider = "MapTiler API";
 
               if (best.context) {
                 best.context.forEach(ctx => {
@@ -1257,12 +1278,12 @@
               }
             }
           } catch (err) {
-            console.warn("MapTiler fallback", err);
+            console.warn("MapTiler geocoding fallback triggered", err);
           }
         }
 
-        // 2. OpenStreetMap / Nominatim Fallback
-        if (!usedMapTiler) {
+        // 2. OpenStreetMap / Nominatim Fallback (Ekstraksi Detail)
+        if (usedProvider === "OpenStreetMap API") {
           const fallbackUrl = `https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&q=${encodeURIComponent(query)}&limit=1`;
           const res = await fetch(fallbackUrl);
           const data = await res.json();
@@ -1275,25 +1296,33 @@
 
             country = addr.country || "Indonesia";
             province = addr.state || addr.region || addr.province || "D.I. Yogyakarta";
-            district = addr.suburb || addr.municipality || addr.city_district || addr.county || addr.town || addr.village || query;
-            fullPlaceName = item.name || query;
+            
+            // Prioritas hierarki kecamatan di OpenStreetMap
+            const candidateDistrict = addr.suburb || addr.municipality || addr.city_district || addr.district || addr.town || addr.village;
+            district = cleanDistrictName(candidateDistrict, addr.county || addr.city);
+            displayLocation = item.name || query;
           } else {
-            throw new Error("Lokasi tidak ditemukan");
+            throw new Error("Lokasi tidak ditemukan. Coba masukkan nama kota/kecamatan yang lebih spesifik.");
           }
         }
 
-        updateGeocodingUI({
-          query: fullPlaceName,
-          country: country.includes("Indonesia") ? "Indonesia 🇮🇩" : country,
+        // Format nama negara dengan bendera
+        const formattedCountry = country.includes("Indonesia") ? "Indonesia 🇮🇩" : `${country} 🌐`;
+
+        // Update Tabel Secara Langsung
+        updateGeocodingTable({
+          location: displayLocation,
+          country: formattedCountry,
           province: province,
           district: district.startsWith("Kecamatan") ? district : `Kecamatan ${district}`,
           lat: lat,
           lon: lon,
-          provider: usedMapTiler ? "MapTiler Cloud API" : "OpenStreetMap API"
+          provider: usedProvider
         });
 
+        // Update data cuaca dan peta
         await fetchRealtimeWeather(lat, lon);
-        updateMapMarker(lat, lon, fullPlaceName);
+        updateMapMarker(lat, lon, displayLocation);
         showToast("Data lokasi berhasil diperbarui!");
 
       } catch (error) {
@@ -1303,8 +1332,9 @@
       }
     }
 
+    // Reverse Geocoding saat user mengklik peta
     async function reverseGeocode(lat, lng) {
-      showToast("Mendeteksi wilayah pada peta...");
+      showToast("Mendeteksi titik koordinat...");
       try {
         const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&addressdetails=1`;
         const res = await fetch(url);
@@ -1314,16 +1344,17 @@
           const addr = data.address;
           const country = addr.country || "Indonesia";
           const province = addr.state || addr.region || "D.I. Yogyakarta";
-          const district = addr.suburb || addr.city_district || addr.municipality || addr.county || addr.village || "Wilayah Terpilih";
-          const placeName = addr.amenity || addr.building || district;
+          const candidateDistrict = addr.suburb || addr.municipality || addr.city_district || addr.district || addr.town || addr.village;
+          const district = cleanDistrictName(candidateDistrict, addr.county || addr.city);
+          const placeName = addr.amenity || addr.building || candidateDistrict || "Wilayah Terpilih";
 
           document.getElementById("locationInput").value = placeName;
 
-          updateGeocodingUI({
-            query: placeName,
-            country: country.includes("Indonesia") ? "Indonesia 🇮🇩" : country,
+          updateGeocodingTable({
+            location: placeName,
+            country: country.includes("Indonesia") ? "Indonesia 🇮🇩" : `${country} 🌐`,
             province: province,
-            district: district.startsWith("Kecamatan") ? district : `Kecamatan ${district}`,
+            district: district,
             lat: lat,
             lon: lng,
             provider: "Leaflet Reverse Geo"
@@ -1331,12 +1362,57 @@
 
           await fetchRealtimeWeather(lat, lng);
           updateMapMarker(lat, lng, placeName);
+          showToast("Data lokasi berhasil diperbarui!");
         }
       } catch (err) {
         showToast("Gagal mendeteksi titik koordinat");
       }
     }
 
+    // FUNGSI UTAMA PEMBARUAN ELEMEN TABEL (LOKASI, NEGARA, PROVINSI, KECAMATAN, KOORDINAT)
+    function updateGeocodingTable(info) {
+      const latFormatted = `${Math.abs(info.lat).toFixed(5)}° ${info.lat >= 0 ? 'N' : 'S'}`;
+      const lonFormatted = `${Math.abs(info.lon).toFixed(5)}° ${info.lon >= 0 ? 'E' : 'W'}`;
+
+      // Ambil elemen DOM
+      const elLoc = document.getElementById("geoInputLocation");
+      const elCountry = document.getElementById("geoCountry");
+      const elProvince = document.getElementById("geoProvince");
+      const elDistrict = document.getElementById("geoDistrict");
+      const elLat = document.getElementById("geoLatitude");
+      const elLon = document.getElementById("geoLongitude");
+      const elBadge = document.getElementById("apiProviderBadge");
+
+      // Isi nilai baru sesuai yang dicari
+      elLoc.textContent = info.location;
+      elCountry.textContent = info.country;
+      elProvince.textContent = info.province;
+      elDistrict.textContent = info.district;
+      elLat.textContent = latFormatted;
+      elLon.textContent = lonFormatted;
+      elBadge.textContent = info.provider;
+
+      // Berikan animasi kedipan hijau untuk menegaskan bahwa tabel sudah berubah
+      [elLoc, elCountry, elProvince, elDistrict, elLat, elLon].forEach(el => {
+        el.classList.remove("data-updated");
+        void el.offsetWidth; // trigger reflow
+        el.classList.add("data-updated");
+      });
+
+      // Simpan state terkini
+      currentData = {
+        location: info.location,
+        country: info.country,
+        province: info.province,
+        district: info.district,
+        lat: latFormatted,
+        lon: lonFormatted,
+        rawLat: info.lat,
+        rawLng: info.lon
+      };
+    }
+
+    // Ambil cuaca Open-Meteo
     async function fetchRealtimeWeather(lat, lon) {
       try {
         const weatherUrl = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m,apparent_temperature,precipitation,weather_code,wind_speed_10m&timezone=auto`;
@@ -1381,33 +1457,9 @@
       return { text: "Berawan Nyaman", icon: "🌤️" };
     }
 
-    function updateGeocodingUI(info) {
-      const latFormatted = `${info.lat >= 0 ? info.lat.toFixed(5) + '° N' : Math.abs(info.lat).toFixed(5) + '° S'}`;
-      const lonFormatted = `${info.lon >= 0 ? info.lon.toFixed(5) + '° E' : Math.abs(info.lon).toFixed(5) + '° W'}`;
-
-      document.getElementById("geoInputLocation").textContent = info.query;
-      document.getElementById("geoCountry").textContent = info.country;
-      document.getElementById("geoProvince").textContent = info.province;
-      document.getElementById("geoDistrict").textContent = info.district;
-      document.getElementById("geoLatitude").textContent = latFormatted;
-      document.getElementById("geoLongitude").textContent = lonFormatted;
-      document.getElementById("apiProviderBadge").textContent = info.provider;
-
-      currentData = {
-        location: info.query,
-        country: info.country,
-        province: info.province,
-        district: info.district,
-        lat: latFormatted,
-        lon: lonFormatted,
-        rawLat: info.lat,
-        rawLng: info.lon
-      };
-    }
-
     function useCurrentLocation() {
       if (!navigator.geolocation) {
-        showToast("Geolocation tidak didukung browser ini");
+        showToast("Geolocation tidak didukung browser");
         return;
       }
       showToast("Mendapatkan posisi GPS...");
@@ -1416,7 +1468,7 @@
           reverseGeocode(pos.coords.latitude, pos.coords.longitude);
         },
         () => {
-          showToast("Akses lokasi ditolak, gunakan input manual");
+          showToast("Akses lokasi ditolak oleh browser");
         }
       );
     }
@@ -1435,11 +1487,10 @@
         `Latitude: ${currentData.lat}\n` +
         `Longitude: ${currentData.lon}\n` +
         `Suhu: ${document.getElementById("displayTemperature").textContent}\n` +
-        `Kondisi: ${document.getElementById("displayCondition").textContent}\n` +
-        `Diambil melalui: Web UI Smart Thermostat`;
+        `Kondisi: ${document.getElementById("displayCondition").textContent}`;
 
       navigator.clipboard.writeText(text).then(() => {
-        showToast("Data Gusty & koordinat disalin!");
+        showToast("Data hasil pencarian berhasil disalin!");
       });
     }
 
