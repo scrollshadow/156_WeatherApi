@@ -1,35 +1,1471 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="id">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Geolocation</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Smart Weather & Geo Dashboard</title>
+  
+  <!-- Font & Icons -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  
+  <!-- Leaflet CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+  
+  <style>
+    :root {
+      --bg-canvas: #EDECE7;
+      --card-white: #FFFFFF;
+      --pastel-yellow: #FFD56B;
+      --pastel-yellow-light: #FFF0BA;
+      --pastel-green: #D7F2A2;
+      --pastel-green-light: #EBF7D3;
+      --pastel-blue: #D6E7FA;
+      --pastel-coral: #FFB396;
+      --dark-card: #18191D;
+      --dark-text: #1C1D21;
+      --muted-text: #7C7E88;
+      --border-soft: rgba(0, 0, 0, 0.06);
+      --shadow-sm: 0 4px 12px rgba(0, 0, 0, 0.03);
+      --shadow-card: 0 14px 34px rgba(28, 29, 33, 0.06);
+      --radius-sm: 18px;
+      --radius-md: 26px;
+      --radius-lg: 36px;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    body {
+      background-color: var(--bg-canvas);
+      color: var(--dark-text);
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 24px 14px;
+    }
+
+    /* Container HP & Frame Bento */
+    .app-viewport {
+      width: 100%;
+      max-width: 440px;
+      background: var(--card-white);
+      border-radius: var(--radius-lg);
+      padding: 24px 20px 32px;
+      box-shadow: var(--shadow-card);
+      position: relative;
+      overflow: hidden;
+      border: 8px solid #FFFFFF;
+      outline: 1px solid rgba(0, 0, 0, 0.05);
+    }
+
+    /* Top Bar Header */
+    .top-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 22px;
+    }
+
+    .user-pill {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      cursor: pointer;
+    }
+
+    .user-avatar {
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #FF9A76 0%, #FF6584 100%);
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 800;
+      font-size: 1.1rem;
+      border: 2px solid #FFFFFF;
+      box-shadow: 0 6px 14px rgba(255, 101, 132, 0.28);
+      position: relative;
+    }
+
+    .user-avatar::after {
+      content: '';
+      position: absolute;
+      width: 10px;
+      height: 10px;
+      background: #22C55E;
+      border-radius: 50%;
+      border: 2px solid #fff;
+      bottom: 0;
+      right: 0;
+    }
+
+    .user-info h2 {
+      font-size: 1.15rem;
+      font-weight: 800;
+      letter-spacing: -0.3px;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .user-info p {
+      font-size: 0.78rem;
+      color: var(--muted-text);
+      font-weight: 600;
+    }
+
+    .pill-switch {
+      background: var(--dark-card);
+      color: #fff;
+      border-radius: 50px;
+      padding: 8px 14px 8px 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.78rem;
+      font-weight: 700;
+      border: none;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .pill-switch .dot {
+      width: 10px;
+      height: 10px;
+      background: #4ADE80;
+      border-radius: 50%;
+      box-shadow: 0 0 8px #4ADE80;
+    }
+
+    /* Bento Grid */
+    .bento-grid {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    /* Card Identitas Mahasiswa */
+    .student-card {
+      background: #F8F9FA;
+      border: 1.5px dashed #D5D7DE;
+      border-radius: var(--radius-md);
+      padding: 14px 18px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      transition: all 0.25s ease;
+    }
+
+    .student-card:hover {
+      border-color: #A0A5B5;
+      background: #F1F3F6;
+    }
+
+    .student-meta {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .student-meta .label-tag {
+      font-size: 0.65rem;
+      text-transform: uppercase;
+      font-weight: 800;
+      color: var(--muted-text);
+      letter-spacing: 0.6px;
+    }
+
+    .student-meta .name-display {
+      font-size: 0.95rem;
+      font-weight: 800;
+      color: var(--dark-text);
+    }
+
+    .student-meta .nim-display {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.82rem;
+      color: #3B82F6;
+      font-weight: 700;
+    }
+
+    .btn-edit-student {
+      background: #FFFFFF;
+      border: 1px solid rgba(0, 0, 0, 0.08);
+      width: 38px;
+      height: 38px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--dark-text);
+      font-size: 0.85rem;
+      cursor: pointer;
+      box-shadow: var(--shadow-sm);
+      transition: all 0.2s;
+    }
+
+    .btn-edit-student:hover {
+      transform: rotate(15deg) scale(1.08);
+      background: var(--dark-card);
+      color: #fff;
+    }
+
+    /* Input Lokasi Kapsul */
+    .search-pill-container {
+      position: relative;
+      display: flex;
+      align-items: center;
+    }
+
+    .search-input {
+      width: 100%;
+      background: #F4F4F6;
+      border: 2px solid transparent;
+      padding: 15px 48px 15px 46px;
+      border-radius: 50px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: var(--dark-text);
+      outline: none;
+      transition: all 0.25s ease;
+    }
+
+    .search-input:focus {
+      border-color: var(--dark-card);
+      background: #fff;
+      box-shadow: 0 6px 20px rgba(0,0,0,0.06);
+    }
+
+    .search-icon-left {
+      position: absolute;
+      left: 18px;
+      color: var(--muted-text);
+      font-size: 0.95rem;
+      pointer-events: none;
+    }
+
+    .btn-search-trigger {
+      position: absolute;
+      right: 6px;
+      width: 38px;
+      height: 38px;
+      border-radius: 50%;
+      border: none;
+      background: var(--dark-card);
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .btn-search-trigger:hover {
+      transform: scale(1.06);
+    }
+
+    /* Chips Kota Cepat */
+    .quick-chips {
+      display: flex;
+      gap: 7px;
+      overflow-x: auto;
+      padding-bottom: 2px;
+      scrollbar-width: none;
+    }
+    .quick-chips::-webkit-scrollbar { display: none; }
+
+    .chip-item {
+      background: #F3F4F6;
+      padding: 6px 14px;
+      border-radius: 50px;
+      font-size: 0.72rem;
+      font-weight: 700;
+      color: #555762;
+      border: none;
+      white-space: nowrap;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .chip-item:hover {
+      background: var(--dark-card);
+      color: #fff;
+    }
+
+    /* Smart Thermostat Dial Card (Kuning Pastel) */
+    .thermostat-card {
+      background: var(--pastel-yellow);
+      border-radius: var(--radius-lg);
+      padding: 22px 20px;
+      position: relative;
+      overflow: hidden;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .card-headline-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 12px;
+    }
+
+    .headline-title {
+      font-size: 1.1rem;
+      font-weight: 800;
+      letter-spacing: -0.3px;
+    }
+    .headline-sub {
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: rgba(0, 0, 0, 0.55);
+    }
+
+    .status-toggle-pill {
+      background: var(--dark-card);
+      color: #fff;
+      border-radius: 30px;
+      padding: 4px 10px;
+      font-size: 0.7rem;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .status-toggle-pill i {
+      color: #4ADE80;
+      font-size: 0.5rem;
+    }
+
+    /* Dial Display */
+    .dial-circle-wrap {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      margin: 14px 0 10px;
+      position: relative;
+    }
+
+    .dial-svg-box {
+      width: 170px;
+      height: 170px;
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .dial-svg {
+      transform: rotate(-90deg);
+      width: 100%;
+      height: 100%;
+    }
+
+    .dial-bg {
+      fill: none;
+      stroke: rgba(255, 255, 255, 0.55);
+      stroke-width: 10;
+    }
+
+    .dial-progress {
+      fill: none;
+      stroke: var(--dark-card);
+      stroke-width: 10;
+      stroke-linecap: round;
+      stroke-dasharray: 440;
+      stroke-dashoffset: 210;
+      transition: stroke-dashoffset 0.8s ease;
+    }
+
+    .dial-center-content {
+      position: absolute;
+      width: 124px;
+      height: 124px;
+      background: #FFFFFF;
+      border-radius: 50%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 10px 22px rgba(0, 0, 0, 0.06);
+    }
+
+    .dial-temp-value {
+      font-size: 1.85rem;
+      font-weight: 800;
+      line-height: 1.1;
+      letter-spacing: -1px;
+      color: var(--dark-text);
+    }
+
+    .dial-condition-text {
+      font-size: 0.72rem;
+      font-weight: 700;
+      color: var(--muted-text);
+      margin-top: 2px;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .thermostat-footer-metrics {
+      display: flex;
+      justify-content: space-around;
+      background: rgba(255, 255, 255, 0.45);
+      backdrop-filter: blur(10px);
+      padding: 10px 14px;
+      border-radius: 20px;
+      margin-top: 10px;
+    }
+
+    .metric-col {
+      text-align: center;
+    }
+    .metric-col span {
+      font-size: 0.68rem;
+      font-weight: 700;
+      color: rgba(0,0,0,0.5);
+      display: block;
+    }
+    .metric-col strong {
+      font-size: 0.85rem;
+      font-weight: 800;
+      color: var(--dark-text);
+    }
+
+    /* Dual Cards */
+    .row-split {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+    }
+
+    .pastel-control-card {
+      border-radius: var(--radius-md);
+      padding: 16px 14px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      min-height: 130px;
+    }
+
+    .card-green {
+      background: var(--pastel-green);
+    }
+
+    .card-blue {
+      background: var(--pastel-blue);
+    }
+
+    .ctrl-top-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .circle-icon-badge {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background: var(--dark-card);
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.85rem;
+    }
+
+    .ctrl-name {
+      font-size: 0.88rem;
+      font-weight: 800;
+      margin-top: 10px;
+    }
+
+    .ctrl-value {
+      font-size: 0.72rem;
+      font-weight: 700;
+      color: rgba(0, 0, 0, 0.6);
+    }
+
+    /* iOS Switch */
+    .ios-switch {
+      position: relative;
+      display: inline-block;
+      width: 44px;
+      height: 24px;
+    }
+
+    .ios-switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+
+    .slider-toggle {
+      position: absolute;
+      cursor: pointer;
+      inset: 0;
+      background-color: rgba(0,0,0,0.15);
+      border-radius: 34px;
+      transition: .3s;
+    }
+
+    .slider-toggle:before {
+      position: absolute;
+      content: "";
+      height: 18px;
+      width: 18px;
+      left: 3px;
+      bottom: 3px;
+      background-color: white;
+      border-radius: 50%;
+      transition: .3s;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    }
+
+    input:checked + .slider-toggle {
+      background-color: #22C55E;
+    }
+
+    input:checked + .slider-toggle:before {
+      transform: translateX(20px);
+    }
+
+    /* Dark HUD Card */
+    .dark-data-card {
+      background: var(--dark-card);
+      color: #FFFFFF;
+      border-radius: var(--radius-lg);
+      padding: 22px 20px;
+      position: relative;
+    }
+
+    .dark-card-title {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+    }
+
+    .dark-card-title h3 {
+      font-size: 0.95rem;
+      font-weight: 800;
+      letter-spacing: -0.2px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .badge-provider {
+      background: rgba(255, 255, 255, 0.12);
+      padding: 4px 10px;
+      border-radius: 30px;
+      font-size: 0.68rem;
+      font-weight: 700;
+      color: #A0AEC0;
+    }
+
+    .geo-data-list {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .geo-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+      padding-bottom: 10px;
+    }
+
+    .geo-row:last-child {
+      border-bottom: none;
+      padding-bottom: 0;
+    }
+
+    .geo-field-label {
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: #8E92A4;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .geo-field-value {
+      font-size: 0.85rem;
+      font-weight: 700;
+      color: #FFFFFF;
+      text-align: right;
+      max-width: 60%;
+      word-break: break-word;
+    }
+
+    .coordinate-pill {
+      font-family: 'JetBrains Mono', monospace;
+      background: rgba(255, 255, 255, 0.1);
+      padding: 4px 8px;
+      border-radius: 8px;
+      color: #4ADE80;
+      font-size: 0.8rem;
+    }
+
+    .dark-card-actions {
+      display: flex;
+      gap: 8px;
+      margin-top: 18px;
+    }
+
+    .btn-action-dark {
+      flex: 1;
+      padding: 10px;
+      border-radius: 14px;
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      background: rgba(255, 255, 255, 0.05);
+      color: #fff;
+      font-size: 0.75rem;
+      font-weight: 700;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      transition: all 0.2s;
+    }
+
+    .btn-action-dark:hover {
+      background: rgba(255, 255, 255, 0.15);
+    }
+
+    /* Leaflet Map */
+    .map-container-card {
+      height: 180px;
+      border-radius: var(--radius-md);
+      overflow: hidden;
+      position: relative;
+      border: 2px solid #F1F2F4;
+    }
+
+    #miniMap {
+      width: 100%;
+      height: 100%;
+      z-index: 1;
+    }
+
+    .map-tag-overlay {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      z-index: 999;
+      background: rgba(255, 255, 255, 0.85);
+      backdrop-filter: blur(8px);
+      padding: 4px 10px;
+      border-radius: 30px;
+      font-size: 0.68rem;
+      font-weight: 800;
+      color: var(--dark-text);
+      box-shadow: 0 4px 10px rgba(0,0,0,0.06);
+    }
+
+    /* Modal Backdrop */
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.5);
+      backdrop-filter: blur(4px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+      z-index: 9999;
+      opacity: 0;
+      visibility: hidden;
+      transition: all 0.25s ease;
+    }
+
+    .modal-backdrop.active {
+      opacity: 1;
+      visibility: visible;
+    }
+
+    .modal-card {
+      background: #FFFFFF;
+      width: 100%;
+      max-width: 380px;
+      border-radius: var(--radius-md);
+      padding: 24px;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+      transform: translateY(20px);
+      transition: transform 0.25s ease;
+    }
+
+    .modal-backdrop.active .modal-card {
+      transform: translateY(0);
+    }
+
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 18px;
+    }
+
+    .modal-header h4 {
+      font-size: 1.1rem;
+      font-weight: 800;
+    }
+
+    .btn-close-modal {
+      background: none;
+      border: none;
+      font-size: 1.2rem;
+      cursor: pointer;
+      color: var(--muted-text);
+    }
+
+    .form-group {
+      margin-bottom: 14px;
+    }
+
+    .form-group label {
+      display: block;
+      font-size: 0.75rem;
+      font-weight: 700;
+      color: var(--muted-text);
+      margin-bottom: 6px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .form-input {
+      width: 100%;
+      padding: 12px 14px;
+      border: 1.5px solid #E2E4E9;
+      border-radius: 14px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      outline: none;
+      transition: border 0.2s;
+    }
+
+    .form-input:focus {
+      border-color: var(--dark-card);
+    }
+
+    .btn-primary {
+      width: 100%;
+      padding: 14px;
+      background: var(--dark-card);
+      color: #fff;
+      font-weight: 800;
+      border-radius: 50px;
+      border: none;
+      cursor: pointer;
+      font-size: 0.9rem;
+      margin-top: 10px;
+      transition: all 0.2s;
+    }
+
+    .btn-primary:hover {
+      background: #000;
+    }
+
+    /* Toast */
+    .toast-box {
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%) translateY(100px);
+      background: var(--dark-card);
+      color: #fff;
+      padding: 10px 20px;
+      border-radius: 50px;
+      font-size: 0.8rem;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+      transition: transform 0.3s cubic-bezier(0.18, 0.89, 0.32, 1.28);
+      z-index: 10000;
+    }
+
+    .toast-box.show {
+      transform: translateX(-50%) translateY(0);
+    }
+  </style>
 </head>
 <body>
 
-    <h3>Nama : Gusty Try Zaldhy Pramana  </h3>
-    <h3>NIM : 20250140156 </h3>
+  <!-- VIEWPORT UTAMA BENTO SMART HOME / WEATHER -->
+  <div class="app-viewport">
+    
+    <!-- Top Header Profile -->
+    <header class="top-bar">
+      <div class="user-pill" onclick="openStudentModal()" title="Klik untuk edit profil">
+        <div class="user-avatar" id="avatarInitial">G</div>
+        <div class="user-info">
+          <h2>Good Day, <span id="headerName">Gusti</span>! ✨</h2>
+          <p>Weather & Geo System</p>
+        </div>
+      </div>
+      <button class="pill-switch" onclick="openApiKeyModal()">
+        <span class="dot"></span>
+        <span>MapTiler</span>
+      </button>
+    </header>
 
-   <p>
-  Lokasi: <span id="lokasi"></span>
-</p>
+    <div class="bento-grid">
 
-<p>
-  Koordinat: <span id="negara"></span>
-</p>
+      <!-- 1. BENTO CARD: Identitas Nama & NIM Mahasiswa -->
+      <div class="student-card">
+        <div class="student-meta">
+          <span class="label-tag">IDENTITAS PENGGUNA / MAHASISWA</span>
+          <div class="name-display" id="cardStudentName">Gusty Try Zaldhy Pramana</div>
+          <div class="nim-display" id="cardStudentNim">NIM: 20250140156</div>
+        </div>
+        <button class="btn-edit-student" onclick="openStudentModal()" title="Edit Nama & NIM">
+          <i class="fa-solid fa-user-pen"></i>
+        </button>
+      </div>
 
-<script>
-  fetch("/api/lokasi")
-    .then(response => response.json())
-    .then(data => {
-      console.log(data);
+      <!-- 2. BENTO ROW: Input Pencarian Lokasi -->
+      <div>
+        <form class="search-pill-container" onsubmit="handleSearch(event)">
+          <i class="fa-solid fa-magnifying-glass search-icon-left"></i>
+          <input 
+            type="text" 
+            id="locationInput" 
+            class="search-input" 
+            placeholder="Cari lokasi: Kasihan, Malioboro..."
+            value="Kasihan, Bantul" 
+            required 
+            autocomplete="off"
+          />
+          <button type="submit" class="btn-search-trigger" id="btnSubmitSearch" title="Cari Wilayah">
+            <i class="fa-solid fa-arrow-right"></i>
+          </button>
+        </form>
 
-      document.getElementById("lokasi").innerHTML = data.kota;
-      document.getElementById("negara").innerHTML = data.koordinat;
-    })
-    .catch(error => {
-      console.error(error);
+        <!-- Quick selection chips -->
+        <div class="quick-chips" style="margin-top: 10px;">
+          <button class="chip-item" onclick="quickSearch('Kasihan, Bantul')">📍 Kasihan</button>
+          <button class="chip-item" onclick="quickSearch('Kraton, Yogyakarta')">📍 Kraton</button>
+          <button class="chip-item" onclick="quickSearch('Kebayoran Baru, Jakarta')">📍 Kebayoran Baru</button>
+          <button class="chip-item" onclick="quickSearch('Coblong, Bandung')">📍 Coblong</button>
+          <button class="chip-item" onclick="useCurrentLocation()">🎯 Lokasi Saya</button>
+        </div>
+      </div>
+
+      <!-- 3. BENTO CARD: Smart Thermostat (Kuning Pastel) -->
+      <div class="thermostat-card">
+        <div class="card-headline-bar">
+          <div>
+            <div class="headline-title">Smart Thermostat</div>
+            <div class="headline-sub" id="weatherTimeSub">Live Weather Data</div>
+          </div>
+          <div class="status-toggle-pill">
+            <i class="fa-solid fa-circle"></i>
+            <span id="systemStatusText">ACTIVE</span>
+          </div>
+        </div>
+
+        <!-- Radial Dial -->
+        <div class="dial-circle-wrap">
+          <div class="dial-svg-box">
+            <svg class="dial-svg" viewBox="0 0 160 160">
+              <circle class="dial-bg" cx="80" cy="80" r="70"></circle>
+              <circle class="dial-progress" id="dialMeter" cx="80" cy="80" r="70"></circle>
+            </svg>
+            <div class="dial-center-content">
+              <div class="dial-temp-value" id="displayTemperature">28°C</div>
+              <div class="dial-condition-text">
+                <span id="conditionIcon">☀️</span>
+                <span id="displayCondition">Cerah Berawan</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Metric Footer -->
+        <div class="thermostat-footer-metrics">
+          <div class="metric-col">
+            <span>KELEMBABAN</span>
+            <strong id="displayHumidity">76%</strong>
+          </div>
+          <div class="metric-col">
+            <span>ANGIN</span>
+            <strong id="displayWind">12 km/h</strong>
+          </div>
+          <div class="metric-col">
+            <span>CURAH HUJAN</span>
+            <strong id="displayRain">0.0 mm</strong>
+          </div>
+        </div>
+      </div>
+
+      <!-- 4. DUAL CARDS -->
+      <div class="row-split">
+        <div class="pastel-control-card card-green">
+          <div class="ctrl-top-bar">
+            <div class="circle-icon-badge">
+              <i class="fa-solid fa-wind"></i>
+            </div>
+            <label class="ios-switch">
+              <input type="checkbox" checked onchange="toggleSensor(this, 'Indeks Udara')">
+              <span class="slider-toggle"></span>
+            </label>
+          </div>
+          <div>
+            <div class="ctrl-name">Kualitas Udara</div>
+            <div class="ctrl-value" id="airQualityText">Baik (AQI 32)</div>
+          </div>
+        </div>
+
+        <div class="pastel-control-card card-blue">
+          <div class="ctrl-top-bar">
+            <div class="circle-icon-badge">
+              <i class="fa-solid fa-sun"></i>
+            </div>
+            <label class="ios-switch">
+              <input type="checkbox" checked onchange="toggleSensor(this, 'Indeks UV')">
+              <span class="slider-toggle"></span>
+            </label>
+          </div>
+          <div>
+            <div class="ctrl-name">Indeks UV</div>
+            <div class="ctrl-value" id="uvIndexText">UV Sedang (4)</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 5. BENTO CARD: Hasil Data Geocoding Lengkap -->
+      <div class="dark-data-card">
+        <div class="dark-card-title">
+          <h3><i class="fa-solid fa-satellite-dish" style="color: #4ADE80;"></i> Informasi Wilayah</h3>
+          <span class="badge-provider" id="apiProviderBadge">MapTiler API</span>
+        </div>
+
+        <div class="geo-data-list">
+          <div class="geo-row">
+            <div class="geo-field-label">
+              <i class="fa-solid fa-map-pin"></i> Lokasi
+            </div>
+            <div class="geo-field-value" id="geoInputLocation">Kasihan, Bantul</div>
+          </div>
+
+          <div class="geo-row">
+            <div class="geo-field-label">
+              <i class="fa-solid fa-flag"></i> Negara
+            </div>
+            <div class="geo-field-value" id="geoCountry">Indonesia 🇮🇩</div>
+          </div>
+
+          <div class="geo-row">
+            <div class="geo-field-label">
+              <i class="fa-solid fa-landmark"></i> Provinsi
+            </div>
+            <div class="geo-field-value" id="geoProvince">Daerah Istimewa Yogyakarta</div>
+          </div>
+
+          <div class="geo-row">
+            <div class="geo-field-label">
+              <i class="fa-solid fa-building"></i> Kecamatan
+            </div>
+            <div class="geo-field-value" id="geoDistrict">Kecamatan Kasihan</div>
+          </div>
+
+          <div class="geo-row">
+            <div class="geo-field-label">
+              <i class="fa-solid fa-arrows-left-right"></i> Longitude
+            </div>
+            <div class="geo-field-value coordinate-pill" id="geoLongitude">110.33250° E</div>
+          </div>
+
+          <div class="geo-row">
+            <div class="geo-field-label">
+              <i class="fa-solid fa-arrows-up-down"></i> Latitude
+            </div>
+            <div class="geo-field-value coordinate-pill" id="geoLatitude">-7.82860° S</div>
+          </div>
+        </div>
+
+        <div class="dark-card-actions">
+          <button class="btn-action-dark" onclick="copyResultData()">
+            <i class="fa-regular fa-copy"></i> Salin Semua Data
+          </button>
+          <button class="btn-action-dark" onclick="openExternalMaps()">
+            <i class="fa-solid fa-arrow-up-right-from-square"></i> Buka Google Maps
+          </button>
+        </div>
+      </div>
+
+      <!-- 6. BENTO CARD: Mini Map Leaflet -->
+      <div class="map-container-card">
+        <div class="map-tag-overlay">
+          <i class="fa-solid fa-crosshairs"></i> Klik peta untuk deteksi lokasi
+        </div>
+        <div id="miniMap"></div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- MODAL: Profil Mahasiswa -->
+  <div class="modal-backdrop" id="studentModal">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h4>Profil Mahasiswa</h4>
+        <button class="btn-close-modal" onclick="closeStudentModal()">&times;</button>
+      </div>
+      <form onsubmit="saveStudentProfile(event)">
+        <div class="form-group">
+          <label>Nama Lengkap:</label>
+          <input type="text" id="inputStudentName" class="form-input" value="Gusty Try Zaldhy Pramana" required>
+        </div>
+        <div class="form-group">
+          <label>Nama Panggilan:</label>
+          <input type="text" id="inputNickName" class="form-input" value="Gusti" required>
+        </div>
+        <div class="form-group">
+          <label>NIM (Nomor Induk Mahasiswa):</label>
+          <input type="text" id="inputStudentNim" class="form-input" value="20250140156" required>
+        </div>
+        <button type="submit" class="btn-primary">Simpan Profil</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: MapTiler Key -->
+  <div class="modal-backdrop" id="apiKeyModal">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h4>MapTiler API Key</h4>
+        <button class="btn-close-modal" onclick="closeApiKeyModal()">&times;</button>
+      </div>
+      <form onsubmit="saveApiKey(event)">
+        <div class="form-group">
+          <label>API Key MapTiler Anda:</label>
+          <input type="text" id="inputMaptilerKey" class="form-input" placeholder="Masukkan MapTiler Key...">
+          <small style="font-size: 0.72rem; color: #718096; display: block; margin-top: 6px;">
+            Dapatkan API Key gratis di <a href="https://cloud.maptiler.com/" target="_blank" style="color: #3182CE; font-weight: 700;">maptiler.com</a>. Jika dikosongkan, menggunakan OpenStreetMap otomatis.
+          </small>
+        </div>
+        <button type="submit" class="btn-primary">Simpan & Perbarui</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Toast -->
+  <div class="toast-box" id="toast">
+    <i class="fa-solid fa-circle-check" style="color: #4ADE80;"></i>
+    <span id="toastMsg">Data berhasil diperbarui</span>
+  </div>
+
+  <!-- Leaflet JS -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+
+  <script>
+    // --- DEFAULT PROFILE VALUES ---
+    const DEFAULT_FULLNAME = "Gusty Try Zaldhy Pramana";
+    const DEFAULT_NICKNAME = "Gusti";
+    const DEFAULT_NIM = "20250140156";
+
+    // --- STATE INITIALIZATION ---
+    let map = null;
+    let currentMarker = null;
+    let currentCoords = { lat: -7.8286, lng: 110.3325 }; // Default: Kasihan, Bantul
+    let currentData = {
+      location: "Kasihan, Bantul",
+      country: "Indonesia 🇮🇩",
+      province: "Daerah Istimewa Yogyakarta",
+      district: "Kecamatan Kasihan",
+      lat: "-7.82860",
+      lon: "110.33250",
+      temp: "28°C"
+    };
+
+    // --- ON LOAD LIFECYCLE ---
+    document.addEventListener("DOMContentLoaded", () => {
+      loadStudentProfile();
+      initLeafletMap();
+      fetchGeoAndWeather("Kasihan, Bantul");
+      updateTimeDisplay();
     });
-</script>
+
+    // --- STUDENT PROFILE LOGIC ---
+    function loadStudentProfile() {
+      const savedName = localStorage.getItem("student_name") || DEFAULT_FULLNAME;
+      const savedNick = localStorage.getItem("student_nickname") || DEFAULT_NICKNAME;
+      const savedNim = localStorage.getItem("student_nim") || DEFAULT_NIM;
+
+      setStudentDataToUI(savedName, savedNick, savedNim);
+    }
+
+    function setStudentDataToUI(fullName, nickName, nim) {
+      document.getElementById("cardStudentName").textContent = fullName;
+      document.getElementById("cardStudentNim").textContent = "NIM: " + nim;
+      
+      const callName = nickName || fullName.trim().split(" ")[0] || "User";
+      document.getElementById("headerName").textContent = callName;
+      document.getElementById("avatarInitial").textContent = callName.charAt(0).toUpperCase();
+
+      document.getElementById("inputStudentName").value = fullName;
+      document.getElementById("inputNickName").value = callName;
+      document.getElementById("inputStudentNim").value = nim;
+    }
+
+    function openStudentModal() {
+      document.getElementById("studentModal").classList.add("active");
+    }
+
+    function closeStudentModal() {
+      document.getElementById("studentModal").classList.remove("active");
+    }
+
+    function saveStudentProfile(e) {
+      e.preventDefault();
+      const fullName = document.getElementById("inputStudentName").value.trim();
+      const nickName = document.getElementById("inputNickName").value.trim();
+      const nim = document.getElementById("inputStudentNim").value.trim();
+
+      if (!fullName || !nim) return;
+
+      localStorage.setItem("student_name", fullName);
+      localStorage.setItem("student_nickname", nickName);
+      localStorage.setItem("student_nim", nim);
+
+      setStudentDataToUI(fullName, nickName, nim);
+      closeStudentModal();
+      showToast("Profil Gusti berhasil diperbarui!");
+    }
+
+    // --- MAPTILER API KEY HANDLING ---
+    function openApiKeyModal() {
+      document.getElementById("inputMaptilerKey").value = localStorage.getItem("maptiler_key") || "";
+      document.getElementById("apiKeyModal").classList.add("active");
+    }
+
+    function closeApiKeyModal() {
+      document.getElementById("apiKeyModal").classList.remove("active");
+    }
+
+    function saveApiKey(e) {
+      e.preventDefault();
+      const key = document.getElementById("inputMaptilerKey").value.trim();
+      if (key) {
+        localStorage.setItem("maptiler_key", key);
+        showToast("MapTiler Key disimpan!");
+      } else {
+        localStorage.removeItem("maptiler_key");
+        showToast("Mode fallback OpenStreetMap aktif");
+      }
+      closeApiKeyModal();
+      fetchGeoAndWeather(document.getElementById("locationInput").value || "Kasihan, Bantul");
+    }
+
+    // --- MAP LEAFLET INITIALIZATION ---
+    function initLeafletMap() {
+      map = L.map('miniMap', {
+        zoomControl: false,
+        attributionControl: false
+      }).setView([currentCoords.lat, currentCoords.lng], 13);
+
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 19
+      }).addTo(map);
+
+      currentMarker = L.marker([currentCoords.lat, currentCoords.lng]).addTo(map);
+
+      map.on('click', async (e) => {
+        const { lat, lng } = e.latlng;
+        reverseGeocode(lat, lng);
+      });
+    }
+
+    function updateMapMarker(lat, lng, popupText = "Lokasi Terpilih") {
+      if (!map) return;
+      currentCoords = { lat, lng };
+      map.flyTo([lat, lng], 13, { duration: 1.2 });
+      if (currentMarker) {
+        currentMarker.setLatLng([lat, lng]);
+      } else {
+        currentMarker = L.marker([lat, lng]).addTo(map);
+      }
+      currentMarker.bindPopup(`<b>${popupText}</b>`).openPopup();
+    }
+
+    // --- SEARCH & DATA FETCHING ---
+    function handleSearch(e) {
+      e.preventDefault();
+      const query = document.getElementById("locationInput").value.trim();
+      if (query) {
+        fetchGeoAndWeather(query);
+      }
+    }
+
+    function quickSearch(city) {
+      document.getElementById("locationInput").value = city;
+      fetchGeoAndWeather(city);
+    }
+
+    async function fetchGeoAndWeather(query) {
+      const apiKey = localStorage.getItem("maptiler_key");
+      const btn = document.getElementById("btnSubmitSearch");
+      btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i>`;
+
+      try {
+        let lat, lon, fullPlaceName = query, country = "-", province = "-", district = "-";
+        let usedMapTiler = false;
+
+        // 1. MapTiler Geocoding API
+        if (apiKey) {
+          try {
+            const url = `https://api.maptiler.com/geocoding/${encodeURIComponent(query)}.json?key=${apiKey}&language=id`;
+            const res = await fetch(url);
+            const data = await res.json();
+
+            if (data.features && data.features.length > 0) {
+              const best = data.features[0];
+              lon = best.geometry.coordinates[0];
+              lat = best.geometry.coordinates[1];
+              fullPlaceName = best.text || query;
+              usedMapTiler = true;
+
+              if (best.context) {
+                best.context.forEach(ctx => {
+                  if (ctx.id.includes('country')) country = ctx.text;
+                  if (ctx.id.includes('subdivision') || ctx.id.includes('region')) province = ctx.text;
+                  if (ctx.id.includes('municipality') || ctx.id.includes('district') || ctx.id.includes('locality')) {
+                    district = ctx.text;
+                  }
+                });
+              }
+              if (district === "-" && best.place_type && best.place_type.includes('municipality')) {
+                district = best.text;
+              }
+            }
+          } catch (err) {
+            console.warn("MapTiler fallback", err);
+          }
+        }
+
+        // 2. OpenStreetMap / Nominatim Fallback
+        if (!usedMapTiler) {
+          const fallbackUrl = `https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&q=${encodeURIComponent(query)}&limit=1`;
+          const res = await fetch(fallbackUrl);
+          const data = await res.json();
+
+          if (data && data.length > 0) {
+            const item = data[0];
+            lat = parseFloat(item.lat);
+            lon = parseFloat(item.lon);
+            const addr = item.address || {};
+
+            country = addr.country || "Indonesia";
+            province = addr.state || addr.region || addr.province || "D.I. Yogyakarta";
+            district = addr.suburb || addr.municipality || addr.city_district || addr.county || addr.town || addr.village || query;
+            fullPlaceName = item.name || query;
+          } else {
+            throw new Error("Lokasi tidak ditemukan");
+          }
+        }
+
+        updateGeocodingUI({
+          query: fullPlaceName,
+          country: country.includes("Indonesia") ? "Indonesia 🇮🇩" : country,
+          province: province,
+          district: district.startsWith("Kecamatan") ? district : `Kecamatan ${district}`,
+          lat: lat,
+          lon: lon,
+          provider: usedMapTiler ? "MapTiler Cloud API" : "OpenStreetMap API"
+        });
+
+        await fetchRealtimeWeather(lat, lon);
+        updateMapMarker(lat, lon, fullPlaceName);
+        showToast("Data lokasi berhasil diperbarui!");
+
+      } catch (error) {
+        showToast("⚠️ " + error.message);
+      } finally {
+        btn.innerHTML = `<i class="fa-solid fa-arrow-right"></i>`;
+      }
+    }
+
+    async function reverseGeocode(lat, lng) {
+      showToast("Mendeteksi wilayah pada peta...");
+      try {
+        const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&addressdetails=1`;
+        const res = await fetch(url);
+        const data = await res.json();
+        
+        if (data && data.address) {
+          const addr = data.address;
+          const country = addr.country || "Indonesia";
+          const province = addr.state || addr.region || "D.I. Yogyakarta";
+          const district = addr.suburb || addr.city_district || addr.municipality || addr.county || addr.village || "Wilayah Terpilih";
+          const placeName = addr.amenity || addr.building || district;
+
+          document.getElementById("locationInput").value = placeName;
+
+          updateGeocodingUI({
+            query: placeName,
+            country: country.includes("Indonesia") ? "Indonesia 🇮🇩" : country,
+            province: province,
+            district: district.startsWith("Kecamatan") ? district : `Kecamatan ${district}`,
+            lat: lat,
+            lon: lng,
+            provider: "Leaflet Reverse Geo"
+          });
+
+          await fetchRealtimeWeather(lat, lng);
+          updateMapMarker(lat, lng, placeName);
+        }
+      } catch (err) {
+        showToast("Gagal mendeteksi titik koordinat");
+      }
+    }
+
+    async function fetchRealtimeWeather(lat, lon) {
+      try {
+        const weatherUrl = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m,apparent_temperature,precipitation,weather_code,wind_speed_10m&timezone=auto`;
+        const res = await fetch(weatherUrl);
+        const wData = await res.json();
+
+        if (wData && wData.current) {
+          const c = wData.current;
+          const temp = Math.round(c.temperature_2m);
+          const humidity = c.relative_humidity_2m;
+          const wind = Math.round(c.wind_speed_10m);
+          const rain = c.precipitation || 0.0;
+          const weatherDesc = interpretWMO(c.weather_code);
+
+          document.getElementById("displayTemperature").textContent = `${temp}°C`;
+          document.getElementById("displayCondition").textContent = weatherDesc.text;
+          document.getElementById("conditionIcon").textContent = weatherDesc.icon;
+          document.getElementById("displayHumidity").textContent = `${humidity}%`;
+          document.getElementById("displayWind").textContent = `${wind} km/h`;
+          document.getElementById("displayRain").textContent = `${rain} mm`;
+
+          const clamped = Math.max(15, Math.min(42, temp));
+          const percentage = (clamped - 15) / (42 - 15);
+          const offset = 440 - (percentage * 230);
+          document.getElementById("dialMeter").style.strokeDashoffset = offset;
+
+          currentData.temp = `${temp}°C`;
+        }
+      } catch (e) {
+        console.warn("Gagal mengambil data cuaca", e);
+      }
+    }
+
+    function interpretWMO(code) {
+      if (code === 0) return { text: "Cerah Bersih", icon: "☀️" };
+      if (code >= 1 && code <= 3) return { text: "Sebagian Berawan", icon: "⛅" };
+      if (code >= 45 && code <= 48) return { text: "Berkabut", icon: "🌫️" };
+      if (code >= 51 && code <= 67) return { text: "Hujan Ringan", icon: "🌦️" };
+      if (code >= 71 && code <= 77) return { text: "Salju Ringan", icon: "❄️" };
+      if (code >= 80 && code <= 82) return { text: "Hujan Lebat", icon: "🌧️" };
+      if (code >= 95) return { text: "Badai Petir", icon: "⛈️" };
+      return { text: "Berawan Nyaman", icon: "🌤️" };
+    }
+
+    function updateGeocodingUI(info) {
+      const latFormatted = `${info.lat >= 0 ? info.lat.toFixed(5) + '° N' : Math.abs(info.lat).toFixed(5) + '° S'}`;
+      const lonFormatted = `${info.lon >= 0 ? info.lon.toFixed(5) + '° E' : Math.abs(info.lon).toFixed(5) + '° W'}`;
+
+      document.getElementById("geoInputLocation").textContent = info.query;
+      document.getElementById("geoCountry").textContent = info.country;
+      document.getElementById("geoProvince").textContent = info.province;
+      document.getElementById("geoDistrict").textContent = info.district;
+      document.getElementById("geoLatitude").textContent = latFormatted;
+      document.getElementById("geoLongitude").textContent = lonFormatted;
+      document.getElementById("apiProviderBadge").textContent = info.provider;
+
+      currentData = {
+        location: info.query,
+        country: info.country,
+        province: info.province,
+        district: info.district,
+        lat: latFormatted,
+        lon: lonFormatted,
+        rawLat: info.lat,
+        rawLng: info.lon
+      };
+    }
+
+    function useCurrentLocation() {
+      if (!navigator.geolocation) {
+        showToast("Geolocation tidak didukung browser ini");
+        return;
+      }
+      showToast("Mendapatkan posisi GPS...");
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          reverseGeocode(pos.coords.latitude, pos.coords.longitude);
+        },
+        () => {
+          showToast("Akses lokasi ditolak, gunakan input manual");
+        }
+      );
+    }
+
+    function copyResultData() {
+      const studentName = document.getElementById("cardStudentName").textContent;
+      const studentNim = document.getElementById("cardStudentNim").textContent;
+
+      const text = `=== DATA GEOSPASIAL & CUACA ===\n` +
+        `Nama: ${studentName}\n` +
+        `${studentNim}\n` +
+        `Lokasi: ${currentData.location}\n` +
+        `Negara: ${currentData.country}\n` +
+        `Provinsi: ${currentData.province}\n` +
+        `Kecamatan: ${currentData.district}\n` +
+        `Latitude: ${currentData.lat}\n` +
+        `Longitude: ${currentData.lon}\n` +
+        `Suhu: ${document.getElementById("displayTemperature").textContent}\n` +
+        `Kondisi: ${document.getElementById("displayCondition").textContent}\n` +
+        `Diambil melalui: Web UI Smart Thermostat`;
+
+      navigator.clipboard.writeText(text).then(() => {
+        showToast("Data Gusty & koordinat disalin!");
+      });
+    }
+
+    function openExternalMaps() {
+      const url = `https://www.google.com/maps/search/?api=1&query=${currentCoords.lat},${currentCoords.lng}`;
+      window.open(url, '_blank');
+    }
+
+    function toggleSensor(el, name) {
+      showToast(`${name} ${el.checked ? 'diaktifkan' : 'dinonaktifkan'}`);
+    }
+
+    function showToast(msg) {
+      const toast = document.getElementById("toast");
+      document.getElementById("toastMsg").textContent = msg;
+      toast.classList.add("show");
+      setTimeout(() => {
+        toast.classList.remove("show");
+      }, 2700);
+    }
+
+    function updateTimeDisplay() {
+      const now = new Date();
+      const options = { hour: '2-digit', minute: '2-digit', weekday: 'short' };
+      document.getElementById("weatherTimeSub").textContent = `${now.toLocaleDateString('id-ID', options)} • Auto-Synced`;
+    }
+  </script>
 </body>
 </html>
